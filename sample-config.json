@@ -33,5 +33,6 @@
     "minecraft-version": {
       "channels": ["<channel-id>"],
       "webhook": "<url>"
-    }
+    },
+    "keepThreadsAlive": true // Keep threads alive after they are closed
 }
