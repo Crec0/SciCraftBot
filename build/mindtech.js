@@ -1,28 +1,23 @@
-import { Client, ThreadChannel } from "discord.js";
-import { Config } from "./types";
+import { ThreadChannel } from "discord.js";
 import { writeFileSync, readFileSync } from "fs";
-
-let client: Client;
-let config: Config;
-let threadsToKeepAlive: Set<ThreadChannel> = new Set();
-
+let client;
+let config;
+let threadsToKeepAlive = new Set();
 function writeSave() {
     const data = {
         threads: Array.from(threadsToKeepAlive).map((thread) => thread.id),
     };
     writeFileSync("./threadsToKeepAlive.json", JSON.stringify(data, null, 4));
 }
-
 function readSave() {
     const data = JSON.parse(readFileSync("./threadsToKeepAlive.json").toString());
     for (const id of data.threads) {
-        const channel = client.channels.cache.get(id) as ThreadChannel;
+        const channel = client.channels.cache.get(id);
         if (channel) {
             threadsToKeepAlive.add(channel);
         }
     }
 }
-
 function randomMessage() {
     let array = [
         "grins and licks",
@@ -45,10 +40,8 @@ function randomMessage() {
         "sneaks up out of nowhere and hugs",
         "tackle-hugs",
     ];
-
     return `Furry sperm whale ${array[Math.round(Math.random() * (array.length - 1))]} Pfeffa!`;
 }
-
 function initKeepAlive() {
     setInterval(() => {
         readSave();
@@ -56,27 +49,25 @@ function initKeepAlive() {
             thread
                 .send(randomMessage())
                 .then((msg) => setTimeout(() => msg.delete(), 1000))
-                .catch(() => {});
+                .catch(() => { });
         }
     }, 1000 * 60 * 60);
 }
-
-export default async (_client: Client, _config: Config) => {
+export default async (_client, _config) => {
     client = _client;
     config = _config;
     if (config.keepThreadsAlive) {
         client.on("messageCreate", async (message) => {
-            if (
-                message.channel instanceof ThreadChannel &&
-                message.content.startsWith(config.prefix)
-            ) {
+            if (message.channel instanceof ThreadChannel &&
+                message.content.startsWith(config.prefix)) {
                 if (message.content.toLowerCase().match(/^=keepalive$/)) {
                     threadsToKeepAlive.add(message.channel);
-                } else if (message.content.toLowerCase().match(/^=dontkeepalive$/)) {
+                }
+                else if (message.content.toLowerCase().match(/^=dontkeepalive$/)) {
                     threadsToKeepAlive.delete(message.channel);
                 }
                 writeSave();
-                message.delete().catch(() => {});
+                message.delete().catch(() => { });
             }
         });
         readSave();
