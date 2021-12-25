@@ -37,7 +37,7 @@ const jira = new JiraApi({
 (async () => {
     const commands: SlashCommandStringOption[] = [];
 
-    for (const module of ["eigenbot", "scicraft", "minecraft-version"]) {
+    for (const module of ["eigenbot", "scicraft", "minecraft-version", "mindtech"]) {
         const m = await import(`./${module}.js`);
         const moduleCommands = (await m.default(client, config, jira)) || [];
         for (const command of moduleCommands) {
