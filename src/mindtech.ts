@@ -23,12 +23,38 @@ function readSave() {
     }
 }
 
+function randomMessage() {
+    let array = [
+        "grins and licks",
+        "flops and licks",
+        "gets up and licks",
+        "happily licks",
+        "submissively licks",
+        "smooches and licks",
+        "pushed over and licked",
+        "happily kisses",
+        "blushes and then kisses",
+        "surprise-kisses",
+        "hastily kisses",
+        "sneakily kisses",
+        "noms",
+        "started to nom on",
+        "noms and licks",
+        "happily hugs",
+        "giggles and hugs",
+        "sneaks up out of nowhere and hugs",
+        "tackle-hugs",
+    ];
+
+    return `${array[Math.round(Math.random() * (array.length - 1))]} Pfeffa!`;
+}
+
 function initKeepAlive() {
     setInterval(() => {
         readSave();
         for (const thread of threadsToKeepAlive) {
             thread
-                .send(":middle_finger: pheha")
+                .send(randomMessage())
                 .then((msg) => setTimeout(() => msg.delete(), 1000))
                 .catch(() => {});
         }
@@ -42,10 +68,13 @@ export default async (_client: Client, _config: Config) => {
         client.on("messageCreate", async (message) => {
             if (
                 message.channel instanceof ThreadChannel &&
-                message.content.startsWith(config.prefix) &&
-                message.content.toLowerCase().match(/^=keepalive$/)
+                message.content.startsWith(config.prefix)
             ) {
-                threadsToKeepAlive.add(message.channel);
+                if (message.content.toLowerCase().match(/^=keepalive$/)) {
+                    threadsToKeepAlive.add(message.channel);
+                } else if (message.content.toLowerCase().match(/^=dontkeepalive$/)) {
+                    threadsToKeepAlive.delete(message.channel);
+                }
                 writeSave();
                 message.delete().catch(() => {});
             }
