@@ -46,10 +46,13 @@ function initKeepAlive() {
     setInterval(() => {
         readSave();
         for (const thread of threadsToKeepAlive) {
+            if (thread.archived) {
+                thread.setArchived(true, "Keeping alive");
+            }
             thread
                 .send(randomMessage())
                 .then((msg) => setTimeout(() => msg.delete(), 1000))
-                .catch(() => { });
+                .catch((e) => console.error(e));
         }
     }, 1000 * 60 * 60);
 }
@@ -67,7 +70,7 @@ export default async (_client, _config) => {
                     threadsToKeepAlive.delete(message.channel);
                 }
                 writeSave();
-                message.delete().catch(() => { });
+                message.delete().catch((e) => console.error(e));
             }
         });
         readSave();
