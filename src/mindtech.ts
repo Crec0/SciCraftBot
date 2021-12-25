@@ -50,11 +50,11 @@ function randomMessage() {
 }
 
 function initKeepAlive() {
-    setInterval(() => {
+    setInterval(async () => {
         readSave();
         for (const thread of threadsToKeepAlive) {
             if (thread.archived) {
-                thread.setArchived(true, "Keeping alive");
+                await thread.setArchived(true, "Keeping alive");
             }
             thread
                 .send(randomMessage())
