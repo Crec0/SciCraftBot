@@ -1,3 +1,4 @@
+import { Embed } from "@discordjs/builders";
 import { Client, Message, PermissionString, TextChannel } from "discord.js";
 import request from "request";
 import { Config } from "./types.js";
@@ -42,28 +43,34 @@ function initMoniterLinksOnlyChannels() {
     const ignoreRoles = linkOnlyConf.ignoreRoles || [];
     const ignorePermissions = linkOnlyConf.ignorePermissions || ["MANAGE_CHANNELS"];
     const channels = linkOnlyConf.channels || [];
+    
     const allowedLinks = [
         /\bhttps:\/\/youtu\.be\//,
         /\bhttps:\/\/www\.youtube\.com\//,
+        /\bhttps:\/\/www\.m\.youtube\.com\//,
         /\bhttps:\/\/www\.twitch\.tv\//,
         /\bhttps:\/\/www\.bilibili\.com\/video\//,
     ];
+
     client.on("messageCreate", (msg) => {
         if (
             msg.author.bot ||
             !channels.includes(msg.channel.id) ||
             !msg.deletable ||
             !msg.member ||
-            allowedLinks.some((link) => link.test(msg.content))
+            allowedLinks.some((link) => link.test(msg.content)) ||
+            msg.embeds.some((e) => e.video)
         ) {
             return;
         }
+
         for (const [id, role] of msg.member.roles.cache) {
             if (ignoreRoles.includes(id)) {
                 console.log(`${msg.id}: ${msg.author.username} has ${role.name}, not deleting`);
                 return;
             }
         }
+
         for (const perm of ignorePermissions) {
             if (msg.member.permissions.has(perm as PermissionString)) {
                 console.log(`${msg.id}: ${msg.author.username} has ${perm}, not deleting`);
@@ -156,32 +163,24 @@ async function checkStreams(gracePeriod: number) {
     }
 }
 
-async function deleteAndLog(msg: Message, reason: string) {
-    await msg.delete();
+async function log(msg: Message, reason: string) {
     if (config["modlog"]) {
         const modlog = await client.channels.fetch(config.modlog);
-        await (modlog as TextChannel).send({
-            embeds: [
-                {
-                    author: {
-                        name: msg.author.tag,
-                        icon_url: msg.author.displayAvatarURL(),
-                    },
-                    description: `**Message by <@${msg.author.id}> deleted in <#${msg.channel.id}>**\n${msg.content}`,
-                    fields: [
-                        {
-                            name: "Reason",
-                            value: reason,
-                        },
-                    ],
-                    footer: {
-                        text: `ID: ${msg.id}`,
-                    },
-                    timestamp: new Date(msg.createdTimestamp),
-                },
-            ],
+        const embed: Embed = new Embed({
+            author: { name: msg.author.tag, icon_url: msg.author.displayAvatarURL() },
+            description: `**Message by <@${msg.author.id}> deleted in <#${msg.channel.id}>**\n${msg.content}`,
+            fields: [{ name: "Reason", value: reason }],
+            footer: { text: `ID: ${msg.id}` },
+            timestamp: new Date(msg.createdTimestamp).toISOString(),
         });
+        await (modlog as TextChannel).send({ embeds: [embed] });
     }
+}
+
+async function deleteAndLog(msg: Message, reason: string) {
+    msg.delete()
+        .then(() => log(msg, reason))
+        .catch(() => {});
 }
 
 let oauthToken: string;

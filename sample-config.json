@@ -30,6 +30,11 @@
       "ignorePermissions": ["<permission>"], // Users with one of these permissions are allowed as well, default is ["MANAGE_CHANNELS"]
       "channels": ["<channel-id>"] // Channels which are moderated for messages that require media attachments or links
     },
+    "linksOnly": {
+      "ignoreRoles": ["<role-id>"], // Roles that are allowed to post text messages
+      "ignorePermissions": ["<permission>"], // Users with one of these permissions are allowed as well, default is ["MANAGE_CHANNELS"]
+      "channels": ["<channel-id>"] // Channels which are moderated for messages that require media attachments or links
+    },
     "minecraftVersion": {
       "channels": ["<channel-id>"],
       "webhook": "<url>",
