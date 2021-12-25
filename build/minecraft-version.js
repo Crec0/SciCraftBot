@@ -81,7 +81,7 @@ async function fetchManifest(lastModified) {
         return await fetchTimeout("https://meta.skyrising.xyz/mc/game/version_manifest.json", 4000, { headers, agent });
     }
     catch (e) {
-        console.error(e);
+        console.error("Timeout fetching manifest");
         return await fetchTimeout("https://launchermeta.mojang.com/mc/game/version_manifest.json", 4000, { agent });
     }
 }
@@ -224,7 +224,7 @@ async function getPatchNotes() {
         return await (await fetchTimeout("https://launchercontent.mojang.com/javaPatchNotes.json", 2000)).json();
     }
     catch (e) {
-        console.error(e);
+        console.error("Timed out fetching patch notes");
         return { version: 1, entries: [] };
     }
 }
@@ -251,7 +251,7 @@ async function getArticleGrid() {
         return await (await fetchTimeout("https://www.minecraft.net/content/minecraft-net/_jcr_content.articles.grid", 2000, { headers: { "User-Agent": USER_AGENT } })).json();
     }
     catch (e) {
-        console.error(e);
+        console.error("Timed out fetching article grid");
         return { article_grid: [], article_count: 0 };
     }
 }
@@ -315,6 +315,7 @@ async function checkImage(url) {
         return true;
     }
     catch (e) {
+        console.error(`Failed to check image ${url}`);
         return false;
     }
 }
