@@ -1,24 +1,39 @@
 import https from "https";
-import request from "request-promise-native";
 import fetch from "node-fetch";
 import html from "html-entities";
-import { SlashCommandBuilder } from "@discordjs/builders";
-import { replyNoMention } from "./utils.js";
+import { Embed, SlashCommandBuilder } from "@discordjs/builders";
+import { fetchTimeout, replyMessage } from "./utils.js";
+import { Client, CommandInteraction, Message, TextChannel } from "discord.js";
+import { Config, Manifest, MinecraftVersion, VersionInfo, VersionManifest } from "./types";
+import request, { Headers } from "request";
 
-let client, config;
+let client: Client;
+let config: MinecraftVersion;
 
-export default async (_client, _config) => {
+export default async (_client: Client, _config: Config) => {
     client = _client;
-    config = _config["minecraft-version"];
+
+    if (!_config.minecraftVersion) return;
+
+    config = _config.minecraftVersion;
     if (!config) return;
-    const state = {};
+
+    const state: { data?: Manifest } = {};
     await poll.call(state);
+
     if (config.webhook || config.channels) {
         setInterval(poll.bind(state), (config.interval || 2) * 1000);
     }
-    async function handleVersionCommand(interaction, versionArg) {
-        let type = "snapshot";
-        let id;
+
+    async function handleVersionCommand(
+        interaction: Message | CommandInteraction,
+        versionArg: string
+    ) {
+        let type: string = "snapshot";
+        let id: string | null = null;
+
+        if (!state.data) return;
+
         if (versionArg) {
             if (Object.keys(state.data.latest).includes(versionArg)) {
                 type = versionArg;
@@ -26,39 +41,32 @@ export default async (_client, _config) => {
                 id = versionArg;
             }
         }
-        if (!id) id = state.data.latest[type];
+        if (!id) id = state.data.latest[type as keyof typeof state.data.latest];
         const version = state.data.versions.find((v) => v.id === id);
         if (version) {
             const embed = await getUpdateEmbed(version);
-            await replyNoMention(interaction, { embeds: [embed] });
+            await replyMessage(interaction, new Embed(embed));
         } else {
-            await replyNoMention(
-                interaction,
-                `Unknown version '${id || type}'`
-            );
+            await replyMessage(interaction, `Unknown version '${id || type}'`);
         }
     }
+
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
         try {
             if (message.content.startsWith("!mcversion")) {
-                await handleVersionCommand(
-                    message,
-                    message.content.substr(10).trim()
-                );
+                await handleVersionCommand(message, message.content.substr(10).trim());
             }
         } catch (e) {
             console.error(e);
         }
     });
     client.on("interactionCreate", async (interaction) => {
-        if (!interaction.isCommand() || interaction.commandName !== "mcversion")
+        if (!interaction.isCommand() || interaction.commandName !== "mcversion") {
             return;
+        }
         await interaction.deferReply();
-        await handleVersionCommand(
-            interaction,
-            interaction.options.getString("version")
-        );
+        await handleVersionCommand(interaction, interaction.options.getString("version") as string);
     });
     return [
         new SlashCommandBuilder()
@@ -75,18 +83,30 @@ const agent = new https.Agent({
     keepAliveMsecs: 10000,
 });
 
-async function fetchManifest(lastModified) {
-    const headers = {};
+async function fetchManifest(lastModified: Date) {
+    const headers: Headers = {};
+
     if (lastModified) {
         headers["If-Modified-Since"] = lastModified.toUTCString();
     }
-    return await fetch(
-        "https://launchermeta.mojang.com/mc/game/version_manifest.json",
-        { timeout: 4000, agent }
-    );
+
+    try {
+        return await fetchTimeout(
+            "https://meta.skyrising.xyz/mc/game/version_manifest.json",
+            4000,
+            { headers, agent }
+        );
+    } catch (e) {
+        console.error(e);
+        return await fetchTimeout(
+            "https://launchermeta.mojang.com/mc/game/version_manifest.json",
+            4000,
+            { agent }
+        );
+    }
 }
 
-async function poll() {
+async function poll(this: any) {
     try {
         const res = await fetchManifest(this.lastModified);
         const lastModifiedStr = res.headers.get("Last-Modified");
@@ -97,11 +117,11 @@ async function poll() {
             }
         }
         if (res.status === 304) return;
-        const data = await res.json();
+        const data: any = await res.json();
         this.data = data;
         const latestDate = data.versions
-            .map((v) => Date.parse(v.time))
-            .reduce((a, b) => (a > b ? a : b));
+            .map((v: { time: string }) => Date.parse(v.time))
+            .reduce((a: number, b: number) => (a > b ? a : b));
 
         if (this.latestDate === undefined) {
             this.latestRelease = data.latest.release;
@@ -116,39 +136,36 @@ async function poll() {
         if (this.latestRelease !== data.latest.release) {
             this.latestRelease = data.latest.release;
             this.latestSnapshot = data.latest.snapshot;
-            await update(
-                data.versions.find((v) => v.id === data.latest.release)
-            );
+            await update(data.versions.find((v: { id: string }) => v.id === data.latest.release));
         } else if (this.latestSnapshot !== data.latest.snapshot) {
             this.latestSnapshot = data.latest.snapshot;
-            await update(
-                data.versions.find((v) => v.id === data.latest.snapshot)
-            );
+            await update(data.versions.find((v: { id: string }) => v.id === data.latest.snapshot));
         }
     } catch (e) {
         console.error(e);
     }
 }
 
-const fancySize = (size) => {
+function fancySize(size: number) {
     const mbs = size / (1024 * 1024);
-    return mbs.toFixed(1) + "MB";
-};
+    return `${mbs.toFixed(1)}MB`;
+}
 
-async function update(version) {
+async function update(version: VersionInfo) {
     const embed = await getUpdateEmbed(version);
-    if (config.webhook)
-        await request.post(config.webhook, { json: { embeds: [embed] } });
-    if (config.channels) {
-        for (const id of config.channels) {
+    if (config["webhook"]) {
+        request.post(config["webhook"], { json: { embeds: [embed] } });
+    }
+    if (config["channels"]) {
+        for (const id of config["channels"]) {
             const channel = await client.channels.fetch(id);
-            await channel.send({ embeds: [embed] });
+            await (channel as TextChannel).send({ embeds: [embed] });
         }
     }
 }
 
-async function getUpdateEmbed(version) {
-    const details = await (await fetch(version.url)).json();
+async function getUpdateEmbed(version: VersionInfo) {
+    const details: VersionManifest = (await (await fetch(version.url)).json()) as VersionManifest;
     const fields = {
         Type: version.type.includes("_")
             ? version.type.replace(/_/g, "-")
@@ -156,16 +173,18 @@ async function getUpdateEmbed(version) {
         Id: version.id,
         "Version JSON": `[${version.id}.json](${version.url})`,
         Assets: `[${details.assetIndex.id}](${details.assetIndex.url})`,
+        ChangeLog: "",
     };
-    let embedImage, embedThumbnail;
+    let embedImage;
+    let embedThumbnail;
     let extraDescription;
     try {
         const { url, image, subtitle, description } = await getArticle(version);
         extraDescription = description;
         if (url) {
-            fields.Changelog = `[${subtitle || "minecraft.net"}](${url})`;
+            fields.ChangeLog = `[${subtitle || "minecraft.net"}](${url})`;
         } else {
-            fields.Changelog = `[quiltmc.org](https://quiltmc.org/mc-patchnotes/#${version.id})`;
+            fields.ChangeLog = `[quiltmc.org](https://quiltmc.org/mc-patchnotes/#${version.id})`;
         }
         if (image) {
             if (image.endsWith("-header.jpg")) {
@@ -190,8 +209,8 @@ async function getUpdateEmbed(version) {
         .filter(Boolean)
         .join(" - ");
     const description = [
-        Object.keys(fields)
-            .map((k) => `**${k}**: ${fields[k]}`)
+        Object.entries(fields)
+            .map((k, _) => `**${k[0]}**: ${k[1]}`)
             .join("\n"),
         extraDescription,
         jars,
@@ -209,24 +228,20 @@ async function getUpdateEmbed(version) {
     return embed;
 }
 
-function getFullVersionName(version) {
+function getFullVersionName(version: VersionInfo) {
     const match = version.id.match(/^(\d+\.\d+(?:\.\d+)?)(-(rc|pre)(\d+)$)?/);
     if (match) {
         switch (match[3]) {
             case "rc":
-                return match[1] + " Release Candidate " + match[4];
+                return `${match[1]} Release Candidate ${match[4]}`;
             case "pre":
-                return match[1] + " Pre-Release " + match[4];
+                return `${match[1]} Pre-Release ${match[4]}`;
         }
     }
-    return (
-        version.type
-            .split("_")
-            .map((w) => w[0].toUpperCase() + w.slice(1))
-            .join(" ") +
-        " " +
-        version.id
-    );
+    return `${version.type
+        .split("_")
+        .map((w) => w[0].toUpperCase() + w.slice(1))
+        .join(" ")} ${version.id}`;
 }
 
 const USER_AGENT = "Mozilla/5.0 (Linux) Gecko";
@@ -234,12 +249,7 @@ const USER_AGENT = "Mozilla/5.0 (Linux) Gecko";
 async function getPatchNotes() {
     try {
         return await (
-            await fetch(
-                "https://launchercontent.mojang.com/javaPatchNotes.json",
-                {
-                    timeout: 2000,
-                }
-            )
+            await fetchTimeout("https://launchercontent.mojang.com/javaPatchNotes.json", 2000)
         ).json();
     } catch (e) {
         console.error(e);
@@ -247,14 +257,14 @@ async function getPatchNotes() {
     }
 }
 
-async function getPatchNotesInfo(version) {
-    const allPatchNotes = await getPatchNotes();
+async function getPatchNotesInfo(version: VersionInfo) {
+    const allPatchNotes: any = await getPatchNotes();
     const patchNotes = allPatchNotes.entries.find(
-        (e) => e.version === version.id
+        (e: { version: string }) => e.version === version.id
     );
     if (!patchNotes) return {};
-    const info = {};
-    const image = "https://launchercontent.mojang.com" + patchNotes.image.url;
+    const info: any = {};
+    const image = `https://launchercontent.mojang.com${patchNotes.image.url}`;
     if (await checkImage(image)) {
         info.image = image;
     }
@@ -270,9 +280,10 @@ async function getPatchNotesInfo(version) {
 async function getArticleGrid() {
     try {
         return await (
-            await fetch(
+            await fetchTimeout(
                 "https://www.minecraft.net/content/minecraft-net/_jcr_content.articles.grid",
-                { timeout: 2000, headers: { "User-Agent": USER_AGENT } }
+                2000,
+                { headers: { "User-Agent": USER_AGENT } }
             )
         ).json();
     } catch (e) {
@@ -281,29 +292,28 @@ async function getArticleGrid() {
     }
 }
 
-async function getArticleInfo(version) {
-    const articles = await getArticleGrid();
-    const candidates = articles.article_grid.filter((article) => {
-        const title = article.default_tile.title;
+async function getArticleInfo(version: VersionInfo) {
+    const articles: any = await getArticleGrid();
+    const candidates = articles.article_grid.filter((article: any) => {
+        const { title } = article.default_tile;
         if (
             !title.startsWith("Minecraft ") ||
             title.startsWith("Minecraft Dungeons") ||
             article.default_tile.sub_header.includes("Bedrock Beta")
-        )
+        ) {
             return false;
+        }
         if (title.includes(version.id)) return true;
         if (version.type !== "snapshot") return false;
         const snapshot = version.id.match(/^(\d{2}w\d{2})([a-z])$/);
         if (snapshot) return title.includes(snapshot[1]);
-        const match = version.id.match(
-            /^(\d+\.\d+(?:\.\d+)?)(-(rc|pre)(\d+)$)?/
-        );
+        const match = version.id.match(/^(\d+\.\d+(?:\.\d+)?)(-(rc|pre)(\d+)$)?/);
         if (!match) return false;
         switch (match[3]) {
             case "rc":
-                return title.includes(match[1] + " Release Candidate");
+                return title.includes(`${match[1]} Release Candidate`);
             case "pre":
-                return title.includes(match[1] + " Pre-Release");
+                return title.includes(`${match[1]} Pre-Release`);
             default:
                 return title.includes(version.id);
         }
@@ -311,35 +321,31 @@ async function getArticleInfo(version) {
     const article = candidates[0];
     if (!article) return {};
     const tile = article.default_tile;
-    let imageURL = "https://minecraft.net" + tile.image.imageURL;
+    let imageURL = `https://minecraft.net${tile.image.imageURL}`;
     const headerImageURL = imageURL.replace("1x1", "header");
     if (headerImageURL !== imageURL && (await checkImage(headerImageURL))) {
         imageURL = headerImageURL;
     }
     return {
-        url: "https://minecraft.net" + article.article_url,
+        url: `https://minecraft.net${article.article_url}`,
         title: tile.title,
         subtitle: tile.sub_header,
         image: imageURL,
     };
 }
 
-async function getArticle(version) {
+async function getArticle(version: VersionInfo) {
     const infos = (
-        await Promise.allSettled([
-            getArticleInfo(version),
-            getPatchNotesInfo(version),
-        ])
-    ).map((r) => r.value || {});
+        await Promise.allSettled([getArticleInfo(version), getPatchNotesInfo(version)])
+    ).map((r: any) => r.value || {});
     return { ...infos[0], ...infos[1] };
 }
 
-async function checkImage(url) {
+async function checkImage(url: string) {
     try {
         // See if this would work as an embed
         await (
-            await fetch(url, {
-                timeout: 1000,
+            await fetchTimeout(url, 1000, {
                 method: "HEAD",
                 headers: {
                     "User-Agent":

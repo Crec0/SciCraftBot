@@ -1,8 +1,5 @@
 {
   "tabWidth": 4,
   "useTabs": false,
-  "semi": true,
-  "bracketSpacing": true,
-  "arrowParens": "always",
-  "endOfLine": "lf"
+  "printWidth": 100
 }
