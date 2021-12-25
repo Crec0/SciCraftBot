@@ -43,11 +43,11 @@ function randomMessage() {
     return `Furry sperm whale ${array[Math.round(Math.random() * (array.length - 1))]} Pfeffa!`;
 }
 function initKeepAlive() {
-    setInterval(() => {
+    setInterval(async () => {
         readSave();
         for (const thread of threadsToKeepAlive) {
             if (thread.archived) {
-                thread.setArchived(true, "Keeping alive");
+                await thread.setArchived(true, "Keeping alive");
             }
             thread
                 .send(randomMessage())
