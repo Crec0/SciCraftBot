@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { Client, ClientApplication, ClientUser, Intents } from "discord.js";
+import { Client, ClientApplication, ClientUser } from "discord.js";
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import { SlashCommandStringOption } from "@discordjs/builders";
@@ -9,7 +9,7 @@ import { Config } from "./types.js";
 const config: Config = JSON.parse(readFileSync("./config.json").toString());
 
 const client = new Client({
-    intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+    intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS"],
 });
 
 client.on("ready", () => {

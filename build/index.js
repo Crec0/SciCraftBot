@@ -1,11 +1,11 @@
 import { readFileSync } from "fs";
-import { Client, Intents } from "discord.js";
+import { Client } from "discord.js";
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import JiraApi from "jira-client";
 const config = JSON.parse(readFileSync("./config.json").toString());
 const client = new Client({
-    intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+    intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS"],
 });
 client.on("ready", () => {
     const user = client.user;

@@ -18,29 +18,48 @@ function readSave() {
         }
     }
 }
+const ACTION = [
+    "grins and licks",
+    "flops and licks",
+    "gets up and licks",
+    "happily licks",
+    "submissively licks",
+    "smooches and licks",
+    "pushed over and licked",
+    "happily kisses",
+    "blushes and then kisses",
+    "surprise-kisses",
+    "hastily kisses",
+    "sneakily kisses",
+    "noms",
+    "started to nom on",
+    "noms and licks",
+    "happily hugs",
+    "giggles and hugs",
+    "sneaks up out of nowhere and hugs",
+    "tackle-hugs",
+];
+let MEMBER_NAMES = [];
+const ANIMALS = [
+    "Squirrel",
+    "Dog",
+    "Cheetah",
+    "Wolf",
+    "Meerkat",
+    "Dragon",
+    "Groundhog",
+    "Leopard",
+    "Protogen",
+    "Snow Leopard",
+    "Fox",
+    "Crow",
+    "Pink Tiger"
+];
 function randomMessage() {
-    let array = [
-        "grins and licks",
-        "flops and licks",
-        "gets up and licks",
-        "happily licks",
-        "submissively licks",
-        "smooches and licks",
-        "pushed over and licked",
-        "happily kisses",
-        "blushes and then kisses",
-        "surprise-kisses",
-        "hastily kisses",
-        "sneakily kisses",
-        "noms",
-        "started to nom on",
-        "noms and licks",
-        "happily hugs",
-        "giggles and hugs",
-        "sneaks up out of nowhere and hugs",
-        "tackle-hugs",
-    ];
-    return `Furry sperm whale ${array[Math.round(Math.random() * (array.length - 1))]} Pfeffa!`;
+    const randomMember = MEMBER_NAMES[Math.round(Math.random() * (MEMBER_NAMES.length - 1))];
+    const randomAction = ACTION[Math.round(Math.random() * (ACTION.length - 1))];
+    const randomAnimal = ANIMALS[Math.round(Math.random() * (ANIMALS.length - 1))];
+    return `Furry ${randomAnimal} ${randomAction} ${randomMember}!`;
 }
 function initKeepAlive() {
     setInterval(async () => {
@@ -51,10 +70,10 @@ function initKeepAlive() {
             }
             thread
                 .send(randomMessage())
-                .then((msg) => setTimeout(() => msg.delete(), 1000))
+                .then((msg) => setTimeout(() => msg.delete(), 5000))
                 .catch((e) => console.error(e));
         }
-    }, 1000 * 60 * 60);
+    }, 1000 * 60 * 60 * 12);
 }
 export default async (_client, _config) => {
     client = _client;
@@ -70,10 +89,27 @@ export default async (_client, _config) => {
                     threadsToKeepAlive.delete(message.channel);
                 }
                 writeSave();
-                message.delete().catch((e) => console.error(e));
+                if (!message.deleted) {
+                    message.delete().catch((e) => console.error(e));
+                }
             }
         });
-        readSave();
         initKeepAlive();
     }
+    const GUILD_ID = "768718244244619315";
+    const ROLE_ID = "776847666977832971";
+    client.on("ready", async (client) => {
+        const mt = client.guilds.cache.get(GUILD_ID);
+        if (mt) {
+            await mt.members.fetch();
+            mt.roles.fetch(ROLE_ID).then(role => {
+                if (role == null)
+                    return;
+                role.members.forEach(member => {
+                    console.log(member.displayName);
+                    MEMBER_NAMES.push(member.displayName);
+                });
+            });
+        }
+    });
 };
