@@ -1,14 +1,14 @@
-import { Embed } from "@discordjs/builders";
-import { CommandInteraction, HTTPOptions, Message, WebhookMessageOptions } from "discord.js";
-import { APIMessage } from "discord.js/node_modules/discord-api-types";
+import {Embed} from "@discordjs/builders";
+import {CommandInteraction, HTTPOptions, Message, WebhookMessageOptions} from "discord.js";
+import {APIMessage} from "discord.js/node_modules/discord-api-types";
 import fetch from "node-fetch";
 
 function makeStringPayload(response: string): WebhookMessageOptions {
-    return { content: response, allowedMentions: { repliedUser: false } };
+    return {content: response, allowedMentions: {repliedUser: false}};
 }
 
 function makeEmbedPayload(embed: Embed): WebhookMessageOptions {
-    return { embeds: [embed], allowedMentions: { repliedUser: false } };
+    return {embeds: [embed], allowedMentions: {repliedUser: false}};
 }
 
 function replyMessage(
@@ -49,10 +49,10 @@ function editMessage(
 
 export async function fetchTimeout(url: string, ms: number, options?: HTTPOptions | any) {
     const controller = new AbortController();
-    const promise = fetch(url, { signal: controller.signal, ...options });
+    const promise = fetch(url, {signal: controller.signal, ...options});
     const timeout = setTimeout(() => controller.abort(), ms);
     return promise.finally(() => clearTimeout(timeout));
 };
 
 
-export { replyMessage, editMessage };
+export {replyMessage, editMessage};

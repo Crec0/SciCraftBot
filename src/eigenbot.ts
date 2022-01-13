@@ -1,15 +1,9 @@
-import { Embed, SlashCommandBuilder } from "@discordjs/builders";
-import {
-    ButtonInteraction,
-    Client,
-    CommandInteraction,
-    Message,
-    MessageActionRow,
-} from "discord.js";
-import { replyMessage, editMessage } from "./utils.js";
-import JiraApi, { IssueObject } from "jira-client";
-import { Config, Paginator } from "./types.js";
-import { NameValuePair } from "request";
+import {Embed, SlashCommandBuilder} from "@discordjs/builders";
+import {ButtonInteraction, Client, CommandInteraction, Message, MessageActionRow,} from "discord.js";
+import {editMessage, replyMessage} from "./utils.js";
+import JiraApi, {IssueObject} from "jira-client";
+import {Config, Paginator} from "./types.js";
+import {NameValuePair} from "request";
 
 const PROJECTS = ["MC", "MCAPI", "MCCE", "MCD", "MCL", "MCPE", "REALMS", "BDS", "WEB"];
 
@@ -69,33 +63,33 @@ export default (_client: Client, _config: Config, _jira: JiraApi) => {
 
 function onInteraction(interaction: CommandInteraction) {
     switch (interaction.commandName) {
-        case "upcoming": {
-            return sendUpcoming(interaction, interaction.options.getString("project") as string);
-        }
+    case "upcoming": {
+        return sendUpcoming(interaction, interaction.options.getString("project") as string);
+    }
 
         // case "mcstatus":
         //     return sendStatus(interaction);
 
-        case "bug": {
-            const key = interaction.options.getString("id");
-            if (!key) {
-                return;
-            }
-            const dash = key.indexOf("-");
-            const bugNumber = key.substring(dash + 1);
-
-            if (dash < 0 || parseInt(bugNumber).toString() !== bugNumber) {
-                return replyMessage(interaction, "Invalid issue id");
-            }
-
-            if (!PROJECTS.includes(key.substring(0, dash).toUpperCase())) {
-                return replyMessage(interaction, "Unknown project");
-            }
-
-            interaction.deferReply();
-
-            return respondWithIssues(interaction, [key]);
+    case "bug": {
+        const key = interaction.options.getString("id");
+        if (!key) {
+            return;
         }
+        const dash = key.indexOf("-");
+        const bugNumber = key.substring(dash + 1);
+
+        if (dash < 0 || parseInt(bugNumber).toString() !== bugNumber) {
+            return replyMessage(interaction, "Invalid issue id");
+        }
+
+        if (!PROJECTS.includes(key.substring(0, dash).toUpperCase())) {
+            return replyMessage(interaction, "Unknown project");
+        }
+
+        interaction.deferReply().then()
+
+        return respondWithIssues(interaction, [key]);
+    }
     }
 }
 
@@ -153,21 +147,20 @@ async function onMessage(msg: Message) {
 }
 
 async function fetchIssuesAndPaginate(message: Message<boolean>, issueKeys: string[]) {
-    // makes a search querry
-    // query is in form of 'issueKey in (key1, key2, key3, ...) ORDER BY issueKey ASC'
+    // makes a search query is in form of 'issueKey in (key1, key2, key3, ...) ORDER BY issueKey ASC'
     const search = `issueKey in (${[...issueKeys].join(", ")}) ORDER BY issueKey ASC`;
     jira.searchJira(search)
         .then(async (results) => {
             if (!results.issues || !results.issues.length) {
                 return editMessage(
                     message,
-                    new Embed({ title: "No issues found", color: 0x00ff00 })
+                    new Embed({title: "No issues found", color: 0x00ff00})
                 );
             }
-            createPaginator(message, "Issues", results.issues);
+            await createPaginator(message, "Issues", results.issues);
         })
         .catch((error) => {
-            editMessage(message, new Embed({ title: "An error occured", color: 0xff0000 }));
+            editMessage(message, new Embed({title: "An error occured", color: 0xff0000}));
             console.log("Error when processing upcoming command:");
             console.log(error);
         });
@@ -177,7 +170,7 @@ async function respondWithIssues(msg: Message | CommandInteraction, issueKeys: s
     const maxIssuesBeforeBatching = config["maxIssuesBeforePagination"] ?? 5;
 
     if (issueKeys.length > maxIssuesBeforeBatching) {
-        replyMessage(msg, new Embed({ title: "Collecting issues" })).then((message) => {
+        replyMessage(msg, new Embed({title: "Collecting issues"})).then((message) => {
             if (message instanceof Message) {
                 fetchIssuesAndPaginate(message, issueKeys);
             }
@@ -290,30 +283,30 @@ function getPageToRender(message: Message) {
 
 async function createPaginator(message: Message, title: string, issues: IssueObject[]) {
     // add the issues to the global paginators
-    activePaginators.set(message.id, { title, issues, currentPage: 1 });
+    activePaginators.set(message.id, {title, issues, currentPage: 1});
 
     // do the first time render for page
-    // since its not an interaction, an edit is ok
-    message.edit(getPageToRender(message));
+    // since it's not an interaction, an edit is ok
+    await message.edit(getPageToRender(message));
 
     // attach a collector to the message
-    const colletor = message.createMessageComponentCollector({
+    const collector = message.createMessageComponentCollector({
         componentType: "BUTTON",
         time: 300000,
     });
 
     // when a button is clicked, handle it if it is a valid action
-    colletor.on("collect", async (i) => {
+    collector.on("collect", async (i) => {
         if (["previous", "next", "done"].includes(i.customId)) {
-            handleButtonClick(i);
-            colletor.resetTimer();
+            await handleButtonClick(i);
+            collector.resetTimer();
         }
     });
 
     // when the collector times out, remove buttons and remove it from global cache
-    colletor.on("end", async () => {
+    collector.on("end", async () => {
         activePaginators.delete(message.id);
-        message.edit({
+        await message.edit({
             components: [],
         });
     });
@@ -325,16 +318,16 @@ async function sendUpcoming(interaction: Message | CommandInteraction, _project:
 
     // check if project is valid
     if (!PROJECTS.includes(project)) {
-        replyMessage(interaction, new Embed({ title: "Invalid project", color: 0xff0000 }));
+        await replyMessage(interaction, new Embed({title: "Invalid project", color: 0xff0000}));
         return;
     }
 
-    // send an placeholder embed while we fetch the issues
+    // send a placeholder embed while we fetch the issues
     interaction
         .reply({
-            embeds: [{ title: `Checking for upcoming ${project} bugfixes...` }],
+            embeds: [{title: `Checking for upcoming ${project} bugfixes...`}],
             fetchReply: true,
-            allowedMentions: { repliedUser: false }
+            allowedMentions: {repliedUser: false}
         })
         .then((message) => {
             if (!(message instanceof Message)) {
@@ -356,7 +349,7 @@ async function sendUpcoming(interaction: Message | CommandInteraction, _project:
                         results.issues.length === 1
                             ? "This 1 bug"
                             : `These ${results.issues.length} bugs`;
-                    createPaginator(
+                    await createPaginator(
                         message,
                         `${bugCount} will likely be fixed in the next update for ${project}`,
                         results.issues
@@ -366,7 +359,7 @@ async function sendUpcoming(interaction: Message | CommandInteraction, _project:
                 .catch((error) => {
                     editMessage(
                         message,
-                        new Embed({ title: "An error has occurred.", color: 0xff0000 })
+                        new Embed({title: "An error has occurred.", color: 0xff0000})
                     );
                     console.log("Error when processing upcoming command:");
                     console.log(error);
@@ -379,22 +372,23 @@ async function handleButtonClick(interaction: ButtonInteraction) {
     const totalPages = Math.ceil(paginator.issues.length / ITEMS_PER_PAGE);
 
     switch (interaction.customId) {
-        case "previous":
-            paginator.currentPage = Math.max(1, paginator.currentPage - 1);
-            break;
-        case "next":
-            paginator.currentPage = Math.min(totalPages, paginator.currentPage + 1);
-            break;
-        case "done":
-            activePaginators.delete(interaction.message.id);
-            interaction.update({
-                components: [],
-            });
-            return;
+    case "previous":
+        paginator.currentPage = Math.max(1, paginator.currentPage - 1);
+        break;
+    case "next":
+        paginator.currentPage = Math.min(totalPages, paginator.currentPage + 1);
+        break;
+    case "done":
+        activePaginators.delete(interaction.message.id);
+        await interaction.update({
+            components: [],
+        });
+        return;
     }
     // update the message with the new page
     if (interaction.message instanceof Message) {
-        interaction.message.edit(getPageToRender(interaction.message));
+        await interaction.deferUpdate()
+        await interaction.message.edit(getPageToRender(interaction.message));
     }
 }
 

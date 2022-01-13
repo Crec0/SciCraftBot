@@ -42,6 +42,7 @@ function initMoniterLinksOnlyChannels() {
         /\bhttps:\/\/www\.m\.youtube\.com\//,
         /\bhttps:\/\/www\.twitch\.tv\//,
         /\bhttps:\/\/www\.bilibili\.com\/video\//,
+        /\bhttps:\/\/www\.b23\.tv\//
     ];
     client.on("messageCreate", (msg) => {
         if (msg.author.bot ||
@@ -67,7 +68,7 @@ function initMoniterLinksOnlyChannels() {
         deleteAndLog(msg, "Text message in links-only channel");
     });
 }
-function initMoniterMediaOnlyChannels() {
+function initMonitorMediaOnlyChannels() {
     const mediaOnlyConf = config.mediaOnly;
     if (!mediaOnlyConf)
         return;
@@ -166,7 +167,8 @@ async function log(msg, reason) {
 async function deleteAndLog(msg, reason) {
     msg.delete()
         .then(() => log(msg, reason))
-        .catch(() => { });
+        .catch(() => {
+    });
 }
 let oauthToken;
 let oauthExpires;
@@ -220,6 +222,6 @@ export default (_client, _config) => {
         initMoniterLinksOnlyChannels();
     }
     if (config.mediaOnly) {
-        initMoniterMediaOnlyChannels();
+        initMonitorMediaOnlyChannels();
     }
 };

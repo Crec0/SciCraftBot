@@ -1,7 +1,7 @@
-import { Embed } from "@discordjs/builders";
-import { Client, Message, PermissionString, TextChannel } from "discord.js";
+import {Embed} from "@discordjs/builders";
+import {Client, Message, PermissionString, TextChannel} from "discord.js";
 import request from "request";
-import { Config } from "./types.js";
+import {Config} from "./types.js";
 
 let client: Client;
 let config: Config;
@@ -43,13 +43,14 @@ function initMoniterLinksOnlyChannels() {
     const ignoreRoles = linkOnlyConf.ignoreRoles || [];
     const ignorePermissions = linkOnlyConf.ignorePermissions || ["MANAGE_CHANNELS"];
     const channels = linkOnlyConf.channels || [];
-    
+
     const allowedLinks = [
         /\bhttps:\/\/youtu\.be\//,
         /\bhttps:\/\/www\.youtube\.com\//,
         /\bhttps:\/\/www\.m\.youtube\.com\//,
         /\bhttps:\/\/www\.twitch\.tv\//,
         /\bhttps:\/\/www\.bilibili\.com\/video\//,
+        /\bhttps:\/\/www\.b23\.tv\//
     ];
 
     client.on("messageCreate", (msg) => {
@@ -81,7 +82,7 @@ function initMoniterLinksOnlyChannels() {
     });
 }
 
-function initMoniterMediaOnlyChannels() {
+function initMonitorMediaOnlyChannels() {
     const mediaOnlyConf = config.mediaOnly;
     if (!mediaOnlyConf) return;
     const ignoreRoles = mediaOnlyConf.ignoreRoles || [];
@@ -167,20 +168,21 @@ async function log(msg: Message, reason: string) {
     if (config["modlog"]) {
         const modlog = await client.channels.fetch(config.modlog);
         const embed: Embed = new Embed({
-            author: { name: msg.author.tag, icon_url: msg.author.displayAvatarURL() },
+            author: {name: msg.author.tag, icon_url: msg.author.displayAvatarURL()},
             description: `**Message by <@${msg.author.id}> deleted in <#${msg.channel.id}>**\n${msg.content}`,
-            fields: [{ name: "Reason", value: reason }],
-            footer: { text: `ID: ${msg.id}` },
+            fields: [{name: "Reason", value: reason}],
+            footer: {text: `ID: ${msg.id}`},
             timestamp: new Date(msg.createdTimestamp).toISOString(),
         });
-        await (modlog as TextChannel).send({ embeds: [embed] });
+        await (modlog as TextChannel).send({embeds: [embed]});
     }
 }
 
 async function deleteAndLog(msg: Message, reason: string) {
     msg.delete()
         .then(() => log(msg, reason))
-        .catch(() => {});
+        .catch(() => {
+        });
 }
 
 let oauthToken: string;
@@ -211,20 +213,20 @@ async function getTwitchApi(path: string, params: any) {
         request({
             url: `https://api.twitch.tv/helix/${path}`,
             qs: params,
-            qsStringifyOptions: { arrayFormat: "repeat" },
+            qsStringifyOptions: {arrayFormat: "repeat"},
             headers: {
                 "Client-ID": twitchAuth.id,
                 Authorization: `Bearer ${token}`,
             },
         });
     let res = JSON.parse(r().toString());
-    const { data } = res;
+    const {data} = res;
     while (
         res.data.length &&
         res.pagination &&
         res.pagination.cursor &&
         res.pagination.cursor !== "IA"
-    ) {
+        ) {
         params.after = res.pagination.cursor;
         res = JSON.parse(r().toString());
         data.push(...res.data);
@@ -242,6 +244,6 @@ export default (_client: Client, _config: Config) => {
         initMoniterLinksOnlyChannels();
     }
     if (config.mediaOnly) {
-        initMoniterMediaOnlyChannels();
+        initMonitorMediaOnlyChannels();
     }
 };

@@ -1,11 +1,11 @@
 import https from "https";
 import fetch from "node-fetch";
 import html from "html-entities";
-import { Embed, SlashCommandBuilder } from "@discordjs/builders";
-import { fetchTimeout, replyMessage } from "./utils.js";
-import { Client, CommandInteraction, Message, TextChannel } from "discord.js";
-import { Config, Manifest, MinecraftVersion, VersionInfo, VersionManifest } from "./types";
-import request, { Headers } from "request";
+import {Embed, SlashCommandBuilder} from "@discordjs/builders";
+import {fetchTimeout, replyMessage} from "./utils.js";
+import {Client, CommandInteraction, Message, TextChannel} from "discord.js";
+import {Config, Manifest, MinecraftVersion, VersionInfo, VersionManifest} from "./types";
+import request, {Headers} from "request";
 
 let client: Client;
 let config: MinecraftVersion;
@@ -94,14 +94,14 @@ async function fetchManifest(lastModified: Date) {
         return await fetchTimeout(
             "https://meta.skyrising.xyz/mc/game/version_manifest.json",
             4000,
-            { headers, agent }
+            {headers, agent}
         );
     } catch (e) {
         console.error("Timeout fetching manifest");
         return await fetchTimeout(
             "https://launchermeta.mojang.com/mc/game/version_manifest.json",
             4000,
-            { agent }
+            {agent}
         );
     }
 }
@@ -154,12 +154,12 @@ function fancySize(size: number) {
 async function update(version: VersionInfo) {
     const embed = await getUpdateEmbed(version);
     if (config["webhook"]) {
-        request.post(config["webhook"], { json: { embeds: [embed] } });
+        request.post(config["webhook"], {json: {embeds: [embed]}});
     }
     if (config["channels"]) {
         for (const id of config["channels"]) {
             const channel = await client.channels.fetch(id);
-            await (channel as TextChannel).send({ embeds: [embed] });
+            await (channel as TextChannel).send({embeds: [embed]});
         }
     }
 }
@@ -179,7 +179,7 @@ async function getUpdateEmbed(version: VersionInfo) {
     let embedThumbnail;
     let extraDescription;
     try {
-        const { url, image, subtitle, description } = await getArticle(version);
+        const {url, image, subtitle, description} = await getArticle(version);
         extraDescription = description;
         if (url) {
             fields.ChangeLog = `[${subtitle || "minecraft.net"}](${url})`;
@@ -188,9 +188,9 @@ async function getUpdateEmbed(version: VersionInfo) {
         }
         if (image) {
             if (image.endsWith("-header.jpg")) {
-                embedImage = { url: image };
+                embedImage = {url: image};
             } else {
-                embedThumbnail = { url: image };
+                embedThumbnail = {url: image};
             }
         }
     } catch (e) {
@@ -198,13 +198,13 @@ async function getUpdateEmbed(version: VersionInfo) {
     }
     const jars = [
         details.downloads.server &&
-            `[Server JAR](${details.downloads.server.url}) (${fancySize(
-                details.downloads.server.size
-            )})`,
+        `[Server JAR](${details.downloads.server.url}) (${fancySize(
+            details.downloads.server.size
+        )})`,
         details.downloads.client &&
-            `[Client JAR](${details.downloads.client.url}) (${fancySize(
-                details.downloads.client.size
-            )})`,
+        `[Client JAR](${details.downloads.client.url}) (${fancySize(
+            details.downloads.client.size
+        )})`,
     ]
         .filter(Boolean)
         .join(" - ");
@@ -232,10 +232,10 @@ function getFullVersionName(version: VersionInfo) {
     const match = version.id.match(/^(\d+\.\d+(?:\.\d+)?)(-(rc|pre)(\d+)$)?/);
     if (match) {
         switch (match[3]) {
-            case "rc":
-                return `${match[1]} Release Candidate ${match[4]}`;
-            case "pre":
-                return `${match[1]} Pre-Release ${match[4]}`;
+        case "rc":
+            return `${match[1]} Release Candidate ${match[4]}`;
+        case "pre":
+            return `${match[1]} Pre-Release ${match[4]}`;
         }
     }
     return `${version.type
@@ -253,7 +253,7 @@ async function getPatchNotes() {
         ).json();
     } catch (e) {
         console.error("Timed out fetching patch notes");
-        return { version: 1, entries: [] };
+        return {version: 1, entries: []};
     }
 }
 
@@ -283,19 +283,19 @@ async function getArticleGrid() {
             await fetchTimeout(
                 "https://www.minecraft.net/content/minecraft-net/_jcr_content.articles.grid",
                 2000,
-                { headers: { "User-Agent": USER_AGENT } }
+                {headers: {"User-Agent": USER_AGENT}}
             )
         ).json();
     } catch (e) {
         console.error("Timed out fetching article grid");
-        return { article_grid: [], article_count: 0 };
+        return {article_grid: [], article_count: 0};
     }
 }
 
 async function getArticleInfo(version: VersionInfo) {
     const articles: any = await getArticleGrid();
     const candidates = articles.article_grid.filter((article: any) => {
-        const { title } = article.default_tile;
+        const {title} = article.default_tile;
         if (
             !title.startsWith("Minecraft ") ||
             title.startsWith("Minecraft Dungeons") ||
@@ -310,12 +310,12 @@ async function getArticleInfo(version: VersionInfo) {
         const match = version.id.match(/^(\d+\.\d+(?:\.\d+)?)(-(rc|pre)(\d+)$)?/);
         if (!match) return false;
         switch (match[3]) {
-            case "rc":
-                return title.includes(`${match[1]} Release Candidate`);
-            case "pre":
-                return title.includes(`${match[1]} Pre-Release`);
-            default:
-                return title.includes(version.id);
+        case "rc":
+            return title.includes(`${match[1]} Release Candidate`);
+        case "pre":
+            return title.includes(`${match[1]} Pre-Release`);
+        default:
+            return title.includes(version.id);
         }
     });
     const article = candidates[0];
@@ -338,7 +338,7 @@ async function getArticle(version: VersionInfo) {
     const infos = (
         await Promise.allSettled([getArticleInfo(version), getPatchNotesInfo(version)])
     ).map((r: any) => r.value || {});
-    return { ...infos[0], ...infos[1] };
+    return {...infos[0], ...infos[1]};
 }
 
 async function checkImage(url: string) {

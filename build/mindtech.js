@@ -1,5 +1,5 @@
 import { ThreadChannel } from "discord.js";
-import { writeFileSync, readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 let client;
 let config;
 let threadsToKeepAlive = new Set();

@@ -1,6 +1,6 @@
-import { Client, ThreadChannel } from "discord.js";
-import { Config } from "./types";
-import { writeFileSync, readFileSync } from "fs";
+import {Client, ThreadChannel} from "discord.js";
+import {Config} from "./types";
+import {readFileSync, writeFileSync} from "fs";
 
 let client: Client;
 let config: Config;

@@ -1,6 +1,6 @@
 import { Embed, SlashCommandBuilder } from "@discordjs/builders";
 import { CommandInteraction, Message, MessageActionRow, } from "discord.js";
-import { replyMessage, editMessage } from "./utils.js";
+import { editMessage, replyMessage } from "./utils.js";
 const PROJECTS = ["MC", "MCAPI", "MCCE", "MCD", "MCL", "MCPE", "REALMS", "BDS", "WEB"];
 let client;
 let config;
@@ -66,7 +66,7 @@ function onInteraction(interaction) {
             if (!PROJECTS.includes(key.substring(0, dash).toUpperCase())) {
                 return replyMessage(interaction, "Unknown project");
             }
-            interaction.deferReply();
+            interaction.deferReply().then();
             return respondWithIssues(interaction, [key]);
         }
     }
@@ -116,15 +116,14 @@ async function onMessage(msg) {
     }
 }
 async function fetchIssuesAndPaginate(message, issueKeys) {
-    // makes a search querry
-    // query is in form of 'issueKey in (key1, key2, key3, ...) ORDER BY issueKey ASC'
+    // makes a search query is in form of 'issueKey in (key1, key2, key3, ...) ORDER BY issueKey ASC'
     const search = `issueKey in (${[...issueKeys].join(", ")}) ORDER BY issueKey ASC`;
     jira.searchJira(search)
         .then(async (results) => {
         if (!results.issues || !results.issues.length) {
             return editMessage(message, new Embed({ title: "No issues found", color: 0x00ff00 }));
         }
-        createPaginator(message, "Issues", results.issues);
+        await createPaginator(message, "Issues", results.issues);
     })
         .catch((error) => {
         editMessage(message, new Embed({ title: "An error occured", color: 0xff0000 }));
@@ -239,24 +238,24 @@ async function createPaginator(message, title, issues) {
     // add the issues to the global paginators
     activePaginators.set(message.id, { title, issues, currentPage: 1 });
     // do the first time render for page
-    // since its not an interaction, an edit is ok
-    message.edit(getPageToRender(message));
+    // since it's not an interaction, an edit is ok
+    await message.edit(getPageToRender(message));
     // attach a collector to the message
-    const colletor = message.createMessageComponentCollector({
+    const collector = message.createMessageComponentCollector({
         componentType: "BUTTON",
         time: 300000,
     });
     // when a button is clicked, handle it if it is a valid action
-    colletor.on("collect", async (i) => {
+    collector.on("collect", async (i) => {
         if (["previous", "next", "done"].includes(i.customId)) {
-            handleButtonClick(i);
-            colletor.resetTimer();
+            await handleButtonClick(i);
+            collector.resetTimer();
         }
     });
     // when the collector times out, remove buttons and remove it from global cache
-    colletor.on("end", async () => {
+    collector.on("end", async () => {
         activePaginators.delete(message.id);
-        message.edit({
+        await message.edit({
             components: [],
         });
     });
@@ -266,10 +265,10 @@ async function sendUpcoming(interaction, _project) {
     const project = _project ? _project.toUpperCase() : "MC";
     // check if project is valid
     if (!PROJECTS.includes(project)) {
-        replyMessage(interaction, new Embed({ title: "Invalid project", color: 0xff0000 }));
+        await replyMessage(interaction, new Embed({ title: "Invalid project", color: 0xff0000 }));
         return;
     }
-    // send an placeholder embed while we fetch the issues
+    // send a placeholder embed while we fetch the issues
     interaction
         .reply({
         embeds: [{ title: `Checking for upcoming ${project} bugfixes...` }],
@@ -292,7 +291,7 @@ async function sendUpcoming(interaction, _project) {
             const bugCount = results.issues.length === 1
                 ? "This 1 bug"
                 : `These ${results.issues.length} bugs`;
-            createPaginator(message, `${bugCount} will likely be fixed in the next update for ${project}`, results.issues);
+            await createPaginator(message, `${bugCount} will likely be fixed in the next update for ${project}`, results.issues);
             return message;
         })
             .catch((error) => {
@@ -314,14 +313,15 @@ async function handleButtonClick(interaction) {
             break;
         case "done":
             activePaginators.delete(interaction.message.id);
-            interaction.update({
+            await interaction.update({
                 components: [],
             });
             return;
     }
     // update the message with the new page
     if (interaction.message instanceof Message) {
-        interaction.message.edit(getPageToRender(interaction.message));
+        await interaction.deferUpdate();
+        await interaction.message.edit(getPageToRender(interaction.message));
     }
 }
 // Send info about the bug in the form of an embed to the Discord channel
