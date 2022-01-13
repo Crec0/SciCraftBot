@@ -73,7 +73,7 @@ function initKeepAlive() {
                 .then((msg) => setTimeout(() => msg.delete(), 5000))
                 .catch((e) => console.error(e));
         }
-    }, 1000 * 60 * 60 * 12);
+    }, 1000 * 60 * (23 * 60 + 55));
 }
 export default async (_client, _config) => {
     client = _client;
