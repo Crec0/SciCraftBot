@@ -4,112 +4,60 @@ let client;
 let config;
 let threadsToKeepAlive = new Set();
 function writeSave() {
-    const data = {
-        threads: Array.from(threadsToKeepAlive).map((thread) => thread.id),
-    };
+    const data = { threads: Array.from(threadsToKeepAlive) };
     writeFileSync("./threadsToKeepAlive.json", JSON.stringify(data, null, 4));
 }
 function readSave() {
-    const data = JSON.parse(readFileSync("./threadsToKeepAlive.json").toString());
-    for (const id of data.threads) {
-        const channel = client.channels.cache.get(id);
-        if (channel) {
-            threadsToKeepAlive.add(channel);
-        }
-    }
-}
-const ACTION = [
-    "grins and licks",
-    "flops and licks",
-    "gets up and licks",
-    "happily licks",
-    "submissively licks",
-    "smooches and licks",
-    "pushed over and licked",
-    "happily kisses",
-    "blushes and then kisses",
-    "surprise-kisses",
-    "hastily kisses",
-    "sneakily kisses",
-    "noms",
-    "started to nom on",
-    "noms and licks",
-    "happily hugs",
-    "giggles and hugs",
-    "sneaks up out of nowhere and hugs",
-    "tackle-hugs",
-];
-let MEMBER_NAMES = [];
-const ANIMALS = [
-    "Squirrel",
-    "Dog",
-    "Cheetah",
-    "Wolf",
-    "Meerkat",
-    "Dragon",
-    "Groundhog",
-    "Leopard",
-    "Protogen",
-    "Snow Leopard",
-    "Fox",
-    "Crow",
-    "Pink Tiger"
-];
-function randomMessage() {
-    const randomMember = MEMBER_NAMES[Math.round(Math.random() * (MEMBER_NAMES.length - 1))];
-    const randomAction = ACTION[Math.round(Math.random() * (ACTION.length - 1))];
-    const randomAnimal = ANIMALS[Math.round(Math.random() * (ANIMALS.length - 1))];
-    return `Furry ${randomAnimal} ${randomAction} ${randomMember}!`;
-}
-function initKeepAlive() {
-    setInterval(async () => {
-        readSave();
-        for (const thread of threadsToKeepAlive) {
-            if (thread.archived) {
-                await thread.setArchived(true, "Keeping alive");
-            }
-            thread
-                .send(randomMessage())
-                .then((msg) => setTimeout(() => msg.delete(), 5000))
-                .catch((e) => console.error(e));
-        }
-    }, 1000 * 60 * (23 * 60 + 55));
+    JSON
+        .parse(readFileSync("./threadsToKeepAlive.json").toString())
+        .threads
+        .forEach((t) => threadsToKeepAlive.add(t));
 }
 export default async (_client, _config) => {
     client = _client;
     config = _config;
     if (config.keepThreadsAlive) {
         client.on("messageCreate", async (message) => {
-            if (message.channel instanceof ThreadChannel &&
-                message.content.startsWith(config.prefix)) {
-                if (message.content.toLowerCase().match(/^=keepalive$/)) {
-                    threadsToKeepAlive.add(message.channel);
+            let content = message.content.toLowerCase();
+            if (message.channel instanceof ThreadChannel && content.startsWith(config.prefix)) {
+                content = content.slice(1);
+                let shouldYeet = false;
+                if (content.match(/^stayalive$/)) {
+                    threadsToKeepAlive.add(message.channel.id);
+                    shouldYeet = true;
                 }
-                else if (message.content.toLowerCase().match(/^=dontkeepalive$/)) {
-                    threadsToKeepAlive.delete(message.channel);
+                else if (content.match(/^diepls$/)) {
+                    threadsToKeepAlive.delete(message.channel.id);
+                    shouldYeet = true;
                 }
                 writeSave();
-                if (!message.deleted) {
-                    message.delete().catch((e) => console.error(e));
+                if (shouldYeet) {
+                    message
+                        .delete()
+                        .catch((e) => console.error(e));
                 }
             }
         });
-        initKeepAlive();
-    }
-    const GUILD_ID = "768718244244619315";
-    const ROLE_ID = "776847666977832971";
-    client.on("ready", async (client) => {
-        const mt = client.guilds.cache.get(GUILD_ID);
-        if (mt) {
-            await mt.members.fetch();
-            mt.roles.fetch(ROLE_ID).then(role => {
-                if (role == null)
-                    return;
-                role.members.forEach(member => {
-                    console.log(member.displayName);
-                    MEMBER_NAMES.push(member.displayName);
+        client.on("threadUpdate", async (prevThread, thread) => {
+            var _a;
+            readSave();
+            if (!prevThread.archived && thread.archived && threadsToKeepAlive.has(thread.id)) {
+                await thread.setArchived(false, "Keeping alive. smh.");
+                await thread.setLocked((_a = prevThread.locked) !== null && _a !== void 0 ? _a : false, "Keeping alive. smh");
+                thread.guild
+                    .fetchAuditLogs({ type: "THREAD_UPDATE", limit: 4 })
+                    .then(async (logs) => {
+                    var _a, _b, _c;
+                    for (const log of logs.entries.values()) {
+                        if (!((_a = log.executor) === null || _a === void 0 ? void 0 : _a.bot)
+                            && log.target.id == thread.id
+                            && ((_b = log.changes) === null || _b === void 0 ? void 0 : _b.some(change => change.key === "archived" && change.new))) {
+                            await thread.send(`<@${(_c = log.executor) === null || _c === void 0 ? void 0 : _c.id}> Thread is being kept alive. If you want to archive it, please run \`${_config.prefix}diePls\` before archiving.`);
+                            break;
+                        }
+                    }
                 });
-            });
-        }
-    });
+            }
+        });
+    }
 };
