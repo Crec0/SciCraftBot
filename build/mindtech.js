@@ -1,5 +1,6 @@
-import { ThreadChannel } from "discord.js";
+import { CommandInteraction, Formatters, MessageEmbed, ThreadChannel } from "discord.js";
 import { readFileSync, writeFileSync } from "fs";
+import { SlashCommandBuilder } from "@discordjs/builders";
 let client;
 let config;
 let threadsToKeepAlive = new Set();
@@ -12,6 +13,32 @@ function readSave() {
         .parse(readFileSync("./threadsToKeepAlive.json").toString())
         .threads
         .forEach((t) => threadsToKeepAlive.add(t));
+}
+async function fetchAllMessages(channel) {
+    var _a;
+    let messages = [];
+    let lastID = (_a = channel.lastMessage) === null || _a === void 0 ? void 0 : _a.id;
+    while (true) {
+        const fetchedMessages = await channel.messages.fetch({
+            limit: 100,
+            before: lastID,
+        });
+        if (fetchedMessages.size === 0) {
+            return messages;
+        }
+        messages = messages.concat(Array.from(fetchedMessages.values()).filter(message => !message.author.bot && message.content.match(/\b\d+\b/)));
+        console.log(messages.length);
+        lastID = fetchedMessages.lastKey();
+    }
+}
+async function channelStats(channel) {
+    let stats = new Map();
+    const messages = await fetchAllMessages(channel);
+    for (const message of messages) {
+        const author = message.author.id;
+        stats.set(author, stats.has(author) ? stats.get(author) + 1 : 1);
+    }
+    return new Map([...stats.entries()].sort(([, a], [, b]) => a < b ? 1 : -1).slice(0, 25));
 }
 export default async (_client, _config) => {
     client = _client;
@@ -60,4 +87,43 @@ export default async (_client, _config) => {
             }
         });
     }
+    client.on("interactionCreate", async (interaction) => {
+        var _a;
+        if (interaction instanceof CommandInteraction) {
+            switch (interaction.commandName) {
+                case "count_messages":
+                    await interaction.deferReply();
+                    if (((_a = interaction.memberPermissions) === null || _a === void 0 ? void 0 : _a.has("ADMINISTRATOR")) && interaction.channel) {
+                        const stats = await channelStats(interaction.channel);
+                        let desc = "";
+                        for (const [id, count] of stats) {
+                            desc += `${Formatters.userMention(id)} : ${count}\n`;
+                        }
+                        const embed = new MessageEmbed()
+                            .setTitle("Channel Messages Sent Leaderboard")
+                            .setDescription(desc)
+                            .setFooter(`Requested by ${interaction.user.tag}`);
+                        await interaction.editReply({
+                            embeds: [embed]
+                        });
+                    }
+                    else {
+                        interaction
+                            .reply({
+                            ephemeral: true,
+                            content: "Command can only be ran in a text channel and user must have administrator permissions"
+                        })
+                            .then(() => {
+                        })
+                            .catch(err => console.error(err));
+                    }
+                    break;
+            }
+        }
+    });
+    return [
+        new SlashCommandBuilder()
+            .setName("count_messages")
+            .setDescription("counts the messages per user in the channel")
+    ];
 };

@@ -54,5 +54,5 @@ const jira = new JiraApi({
             : Routes.applicationCommands(clientId), { body: commands });
     });
     // Login with token
-    client.login(config["token"]);
+    await client.login(config["token"]);
 })();

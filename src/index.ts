@@ -65,5 +65,5 @@ const jira = new JiraApi({
     });
 
     // Login with token
-    client.login(config["token"]);
+    await client.login(config["token"]);
 })();
