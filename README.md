@@ -1,5 +1,5 @@
 # TempBot
-## A fork of [ScicraftBot](https://github.com/SciCraft/SciCraftBot) which is a fork of [EigenBot](https://github.com/commandblockguy/EigenBot)
+### A fork of [ScicraftBot](https://github.com/SciCraft/SciCraftBot) which is a fork of [EigenBot](https://github.com/commandblockguy/EigenBot)
 
 ### Original features
 
