@@ -38,7 +38,7 @@ async function fetchAllMessages(channel: TextBasedChannels) {
             return messages;
         }
 
-        messages = messages.concat(Array.from(fetchedMessages.values()).filter(message => !message.author.bot && message.content.match(/\b\d+\b/)));
+        messages = messages.concat(Array.from(fetchedMessages.values()).filter(message => !message.author.bot));
         console.log(messages.length);
         lastID = fetchedMessages.lastKey();
     }
